@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificar recibo — IRE INMOBILIARIA</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#14213D; --navy-2:#1E3055; --brass:#B08A2E; --brass-light:#D9B85C;
+    --paper:#FBF8F1; --ink:#242524; --ink-soft:#5B5D57; --ok:#3C6E47; --bad:#A23B2E; --line:#D8D0BC;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;min-height:100vh;font-family:'Inter',sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,#0F1A30,#14213D 40%,#10182B);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  .card{
+    width:100%;max-width:440px;background:var(--paper);border-radius:14px;padding:30px 28px;
+    box-shadow:0 25px 60px -20px rgba(0,0,0,.55);
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+  .crest{
+    width:38px;height:38px;border-radius:50%;border:1.5px solid var(--brass);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Cormorant Garamond',serif;font-weight:700;font-size:16px;color:var(--brass);
+  }
+  .brand h1{font-family:'Cormorant Garamond',serif;font-size:19px;margin:0;color:var(--navy);}
+  .brand .sub{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-soft);}
+
+  .search{display:flex;gap:8px;margin-bottom:22px;}
+  .search input{
+    flex:1;padding:11px 12px;border-radius:8px;border:1.3px solid #DDD8C9;font-size:14px;
+    font-family:'Space Mono',monospace;background:#fff;
+  }
+  .search button{
+    padding:11px 16px;border:none;border-radius:8px;background:var(--navy);color:#fff;
+    font-weight:600;font-size:13px;cursor:pointer;
+  }
+  .search button:hover{background:var(--navy-2);}
+
+  .state{display:none;text-align:center;padding:14px 4px;}
+  .state.show{display:block;}
+  #stIdle .icon, #stLoad .icon{font-size:28px;}
+  #stLoad{color:var(--ink-soft);font-size:13px;}
+
+  #stOk{text-align:left;}
+  .ok-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px 14px;
+    background:#EAF3EC;border:1px solid #BFDCC7;border-radius:9px;}
+  .ok-head .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);flex:none;}
+  .ok-head b{color:var(--ok);font-size:14px;}
+  .kv{width:100%;border-collapse:collapse;font-size:13px;}
+  .kv td{padding:7px 0;border-bottom:1px solid var(--line);}
+  .kv td.k{color:var(--ink-soft);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;width:42%;}
+  .code{
+    margin-top:14px;font-family:'Space Mono',monospace;font-size:11.5px;color:var(--ink-soft);
+    text-align:center;border-top:1px dashed var(--line);padding-top:10px;
+  }
+
+  #stBad{text-align:center;}
+  .bad-head{
+    display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 10px;
+    background:#F6E6E3;border:1px solid #E3B8B0;border-radius:9px;
+  }
+  .bad-head b{color:var(--bad);font-size:14px;}
+  .bad-head span{font-size:12px;color:var(--ink-soft);}
+
+  .foot{margin-top:20px;font-size:10.5px;color:var(--ink-soft);text-align:center;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <div class="crest">IRE</div>
+    <div>
+      <h1>IRE INMOBILIARIA</h1>
+      <div class="sub">Verificación de recibos</div>
+    </div>
+  </div>
+
+  <div class="search">
+    <input type="text" id="folioInput" placeholder="Ej. IRE-2026-0001">
+    <button id="btnVerify">Verificar</button>
+  </div>
+
+  <div class="state show" id="stIdle">
+    <div class="icon">🔎</div>
+    <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">
+      Escanea el código QR del recibo o escribe el folio para confirmar que es auténtico.
+    </div>
+  </div>
+
+  <div class="state" id="stLoad">Consultando…</div>
+
+  <div class="state" id="stOk">
+    <div class="ok-head"><div class="dot"></div><b>Recibo válido</b></div>
+    <table class="kv">
+      <tr><td class="k">Folio</td><td id="vFolio"></td></tr>
+      <tr><td class="k">Fecha de pago</td><td id="vFecha"></td></tr>
+      <tr><td class="k">Mes pagado</td><td id="vMes"></td></tr>
+      <tr><td class="k">Inquilino</td><td id="vInquilino"></td></tr>
+      <tr><td class="k">Propiedad</td><td id="vDireccion"></td></tr>
+      <tr><td class="k">Concepto</td><td id="vConcepto"></td></tr>
+      <tr><td class="k">Monto</td><td id="vMonto"></td></tr>
+      <tr><td class="k">Método de pago</td><td id="vMetodo"></td></tr>
+      <tr><td class="k">Recibió el pago</td><td id="vReceptor"></td></tr>
+    </table>
+    <div class="code" id="vCode"></div>
+  </div>
+
+  <div class="state" id="stBad">
+    <div class="bad-head">
+      <b>Folio no encontrado</b>
+      <span>No existe ningún recibo con ese folio en los registros de IRE Inmobiliaria, o fue escrito incorrectamente.</span>
+    </div>
+  </div>
+
+  <div class="foot">Esta página consulta en tiempo real los registros de pago de IRE Inmobiliaria. Si tienes dudas sobre un recibo, contacta directamente a tu arrendador.</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const firebaseConfig = {
+  apiKey: "AIzaSyC9Afik0RPlPzhTEr_TlHicNNHHEVkXTOA",
+  authDomain: "ire-inmobiliaria.firebaseapp.com",
+  databaseURL: "https://ire-inmobiliaria-default-rtdb.firebaseio.com",
+  projectId: "ire-inmobiliaria",
+  storageBucket: "ire-inmobiliaria.firebasestorage.app",
+  messagingSenderId: "614961001878",
+  appId: "1:614961001878:web:83829db5bc0f43705dd9b7"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function checksum(str){
+  let h=0;
+  for(let i=0;i<str.length;i++){ h=(h*31 + str.charCodeAt(i))>>>0; }
+  return h.toString(36).toUpperCase().padStart(6,'0').slice(-6);
+}
+function money(n){
+  return '$'+(isNaN(n)?0:n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+' MXN';
+}
+function fmtFecha(iso){
+  if(!iso) return '—';
+  const [y,m,d]=iso.split('-');
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return `${parseInt(d)} de ${meses[parseInt(m)-1]} de ${y}`;
+}
+function fmtMes(iso){
+  if(!iso) return '—';
+  const [y,m]=iso.split('-');
+  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return `${meses[parseInt(m)-1]} ${y}`;
+}
+function setState(id){
+  ['stIdle','stLoad','stOk','stBad'].forEach(s=>$(s).classList.remove('show'));
+  $(id).classList.add('show');
+}
+
+async function verify(folio){
+  folio=(folio||'').trim().toUpperCase();
+  if(!folio) return;
+  setState('stLoad');
+  try{
+    await firebase.auth().signInAnonymously();
+    const snap=await db.ref('recibos/'+folio).once('value');
+    const rec=snap.val();
+    if(!rec){ setState('stBad'); return; }
+    $('vFolio').textContent=rec.folio;
+    $('vFecha').textContent=fmtFecha(rec.fecha);
+    $('vMes').textContent=fmtMes(rec.mesPagado);
+    $('vInquilino').textContent=rec.inquilino||'—';
+    $('vDireccion').textContent=(rec.direccion||'—')+(rec.numInt?(' · '+rec.numInt):'');
+    $('vConcepto').textContent=rec.concepto||'—';
+    $('vMonto').textContent=money(rec.monto);
+    $('vMetodo').textContent=rec.metodo||'—';
+    $('vReceptor').textContent=rec.receptor||'—';
+    const expected=checksum(`${rec.folio}|${rec.monto}|${rec.fecha}|${rec.inquilino}`);
+    $('vCode').textContent='Código de verificación: '+(rec.verCode||expected);
+    setState('stOk');
+  }catch(e){
+    console.error(e);
+    setState('stBad');
+  }
+}
+
+$('btnVerify').addEventListener('click',()=>verify($('folioInput').value));
+$('folioInput').addEventListener('keydown',(e)=>{ if(e.key==='Enter') verify($('folioInput').value); });
+
+const params=new URLSearchParams(location.search);
+if(params.get('folio')){
+  $('folioInput').value=params.get('folio');
+  verify(params.get('folio'));
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRE INMOBILIARIA — Recibos de pago</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#14213D;
+    --navy-2:#1E3055;
+    --brass:#B08A2E;
+    --brass-light:#D9B85C;
+    --paper:#FBF8F1;
+    --paper-2:#F3EEE1;
+    --ink:#242524;
+    --ink-soft:#5B5D57;
+    --stamp-red:#A23B2E;
+    --line:#D8D0BC;
+    --ok:#3C6E47;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#0F1A30,#14213D 40%, #10182B);
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  .brandbar{
+    display:flex;align-items:center;justify-content:space-between;
+    color:var(--paper);margin-bottom:22px;flex-wrap:wrap;gap:10px;
+  }
+  .brandbar .mark{display:flex;align-items:center;gap:12px;}
+  .brandbar .crest{
+    width:42px;height:42px;border-radius:50%;
+    border:1.5px solid var(--brass-light);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Cormorant Garamond',serif;font-weight:700;font-size:19px;
+    color:var(--brass-light);
+  }
+  .brandbar h1{
+    font-family:'Cormorant Garamond',serif;font-weight:700;font-size:26px;
+    margin:0;letter-spacing:.5px;
+  }
+  .brandbar .sub{font-size:11.5px;letter-spacing:1.5px;color:#B9C2D6;text-transform:uppercase;margin-top:1px;}
+  .brandbar .folio-chip{
+    font-family:'Space Mono',monospace;font-size:12.5px;color:var(--brass-light);
+    border:1px solid rgba(217,184,92,.4);padding:6px 12px;border-radius:20px;
+    background:rgba(217,184,92,.07);
+  }
+
+  .grid{display:grid;grid-template-columns:1fr 1.05fr;gap:22px;align-items:start;}
+  @media (max-width:920px){.grid{grid-template-columns:1fr;}}
+
+  .panel{
+    background:#fff;border-radius:14px;padding:26px 26px 28px;
+    box-shadow:0 20px 50px -18px rgba(0,0,0,.5);
+  }
+  .panel h2{
+    font-family:'Cormorant Garamond',serif;font-size:20px;margin:0 0 18px;
+    color:var(--navy);border-bottom:1px solid var(--line);padding-bottom:10px;
+  }
+  .field{margin-bottom:15px;}
+  .field label{
+    display:block;font-size:11.5px;font-weight:600;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  input[type=text],input[type=number],input[type=date],input[type=month],input[type=tel],select,textarea{
+    width:100%;padding:10px 12px;border:1.3px solid #DDD8C9;border-radius:8px;
+    font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);background:#FCFBF7;
+    outline:none;transition:border-color .15s;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--brass);background:#fff;}
+  .amount-words{
+    font-size:12.5px;color:var(--ink-soft);margin-top:6px;font-style:italic;
+    min-height:16px;
+  }
+  .method-toggle{display:flex;gap:10px;}
+  .method-toggle button{
+    flex:1;padding:10px;border-radius:8px;border:1.3px solid #DDD8C9;background:#FCFBF7;
+    font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;color:var(--ink-soft);
+    cursor:pointer;transition:.15s;
+  }
+  .method-toggle button.active{
+    background:var(--navy);border-color:var(--navy);color:#fff;
+  }
+  .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  .btn{
+    border:none;border-radius:9px;padding:12px 18px;font-family:'Inter',sans-serif;
+    font-weight:600;font-size:13.5px;cursor:pointer;transition:.15s;display:flex;
+    align-items:center;gap:8px;
+  }
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:hover{background:var(--navy-2);}
+  .btn-gold{background:var(--brass);color:#fff;}
+  .btn-gold:hover{background:#9A7523;}
+  .btn-outline{background:#fff;border:1.3px solid #DDD8C9;color:var(--ink-soft);}
+  .btn-outline:hover{border-color:var(--navy);color:var(--navy);}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:14px;line-height:1.5;}
+
+  /* RECEIPT PREVIEW */
+  .receipt-shell{position:sticky;top:20px;}
+  #receipt{
+    background:var(--paper);
+    border-radius:4px;
+    position:relative;
+    padding:34px 34px 30px;
+    box-shadow:0 25px 60px -20px rgba(0,0,0,.55);
+    background-image:
+      radial-gradient(circle at 0 50%, transparent 9px, var(--paper) 9.5px),
+      radial-gradient(circle at 100% 50%, transparent 9px, var(--paper) 9.5px);
+  }
+  .r-head{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:16px;
+  }
+  .r-head .co{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:25px;color:var(--navy);}
+  .r-head .co-sub{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink-soft);margin-top:2px;}
+  .r-head .folio-box{text-align:right;}
+  .r-head .folio-box .lbl{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);}
+  .r-head .folio-box .val{font-family:'Space Mono',monospace;font-size:16px;color:var(--stamp-red);font-weight:700;}
+  .r-title{
+    text-align:center;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:17px;
+    letter-spacing:2px;text-transform:uppercase;color:var(--navy);margin:6px 0 20px;
+  }
+  .r-amount{
+    background:var(--paper-2);border:1px dashed var(--brass);border-radius:8px;
+    padding:14px 16px;text-align:center;margin-bottom:20px;
+  }
+  .r-amount .num{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;color:var(--navy);}
+  .r-amount .words{font-size:12px;color:var(--ink-soft);margin-top:4px;font-style:italic;}
+  .r-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;}
+  .r-table td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:top;}
+  .r-table td.k{width:42%;color:var(--ink-soft);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;}
+  .r-table td.v{color:var(--ink);font-weight:500;}
+  .r-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;gap:10px;}
+  .qr-block{text-align:center;visibility:hidden;}
+  .qr-block .qr-canvas{width:64px;height:64px;padding:4px;background:#fff;border:1px solid var(--line);border-radius:6px;}
+  .qr-block .qr-cap{font-size:7.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin-top:4px;line-height:1.2;max-width:80px;}
+  .r-sign{text-align:center;flex:1;}
+  .r-sign .line{border-top:1px solid var(--ink-soft);width:170px;margin:26px auto 6px;}
+  .r-sign .cap{font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px;}
+  .r-sign .sig-img{max-height:52px;max-width:190px;margin:0 auto -14px;display:block;}
+  .r-sign .sig-text{font-family:'Dancing Script',cursive;font-size:30px;color:var(--navy);margin:0 auto -10px;line-height:1;}
+
+  /* SIGNATURE PAD */
+  .sig-tabs{display:flex;gap:6px;margin-bottom:8px;}
+  .sig-tabs button{
+    flex:1;padding:7px;border-radius:7px;border:1.3px solid #DDD8C9;background:#FCFBF7;
+    font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;
+  }
+  .sig-tabs button.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .sigpad-wrap{border:1.3px dashed #DDD8C9;border-radius:8px;padding:8px;background:#FCFBF7;}
+  #sigPad{width:100%;height:120px;border-radius:6px;background:#fff;touch-action:none;cursor:crosshair;border:1px solid #EDE7D6;}
+  .sig-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .mini2{
+    padding:6px 11px;font-size:11.5px;border-radius:6px;border:1.3px solid #DDD8C9;
+    background:#fff;color:var(--ink-soft);cursor:pointer;font-weight:600;
+  }
+  .mini2:hover{border-color:var(--navy);color:var(--navy);}
+  .upload-lbl{display:inline-block;}
+  #sigTextWrap input{font-family:'Dancing Script',cursive;font-size:26px;color:var(--navy);}
+  .stamp{
+    width:108px;height:108px;border-radius:50%;border:2.5px solid var(--stamp-red);
+    color:var(--stamp-red);display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transform:rotate(-11deg);opacity:.85;position:relative;
+  }
+  .stamp::before{
+    content:'';position:absolute;inset:6px;border:1px solid var(--stamp-red);border-radius:50%;
+  }
+  .stamp .t1{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:15px;letter-spacing:1px;}
+  .stamp .t2{font-size:8px;letter-spacing:1.5px;margin-top:2px;}
+  .stamp .t3{font-family:'Space Mono',monospace;font-size:8.5px;margin-top:4px;}
+  .r-legal{font-size:9.5px;color:var(--ink-soft);text-align:center;margin-top:22px;line-height:1.5;border-top:1px solid var(--line);padding-top:10px;}
+  .draft-badge{
+    position:absolute;top:14px;right:-30px;background:#EFE5C4;color:#8A6C1D;
+    font-size:10px;letter-spacing:1px;padding:4px 34px;transform:rotate(20deg);
+    text-transform:uppercase;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+
+  /* HOLOGRAPHIC SEAL */
+  .holo-seal{
+    position:absolute;top:104px;right:32px;width:66px;height:66px;border-radius:50%;
+    background:linear-gradient(135deg,#8fd3f4 0%,#fbc2eb 25%,#f6d365 50%,#84fab0 75%,#a1c4fd 100%);
+    border:1.5px solid rgba(255,255,255,.75);
+    box-shadow:0 3px 10px rgba(0,0,0,.22), inset 0 0 7px rgba(255,255,255,.65);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transform:rotate(-9deg);z-index:5;visibility:hidden;
+  }
+  .holo-seal::after{
+    content:'';position:absolute;inset:0;border-radius:50%;
+    background:linear-gradient(120deg,transparent 28%,rgba(255,255,255,.65) 47%,transparent 64%);
+  }
+  .holo-seal::before{
+    content:'';position:absolute;inset:5px;border-radius:50%;border:1px dashed rgba(255,255,255,.7);
+  }
+  .holo-seal .hs-mono{font-family:'Space Mono',monospace;font-weight:700;font-size:12px;color:#1E2340;letter-spacing:.5px;position:relative;z-index:2;}
+  .holo-seal .hs-cap{font-size:5px;letter-spacing:.7px;text-transform:uppercase;color:#1E2340;font-weight:700;margin-top:1px;position:relative;z-index:2;text-align:center;line-height:1.2;}
+  .holo-seal .hs-folio{font-family:'Space Mono',monospace;font-size:5px;color:#1E2340;opacity:.8;margin-top:1px;position:relative;z-index:2;}
+
+  /* HISTORY */
+  .history{margin-top:20px;}
+  .history table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .history th{
+    text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--ink-soft);border-bottom:1.5px solid var(--line);padding:7px 6px;
+  }
+  .history td{padding:8px 6px;border-bottom:1px solid #EEE9DA;}
+  .history .mini{
+    padding:4px 9px;font-size:11px;border-radius:6px;border:1px solid #DDD8C9;
+    background:#fff;cursor:pointer;color:var(--navy);font-weight:600;
+  }
+  .history .mini:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .empty-hist{font-size:12.5px;color:var(--ink-soft);font-style:italic;padding:8px 2px;}
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--navy);color:#fff;padding:11px 20px;border-radius:8px;font-size:13px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:.25s;z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandbar">
+    <div class="mark">
+      <div class="crest">IRE</div>
+      <div>
+        <h1>IRE INMOBILIARIA</h1>
+        <div class="sub">Recibos digitales de pago</div>
+      </div>
+    </div>
+    <div class="folio-chip" id="nextFolioChip">Próximo folio: IRE-2026-0001</div>
+  </div>
+
+  <div class="grid">
+    <!-- FORM -->
+    <div class="panel">
+      <h2>Datos del pago</h2>
+
+      <div class="row2">
+        <div class="field">
+          <label>Fecha de pago</label>
+          <input type="date" id="fecha">
+        </div>
+        <div class="field">
+          <label>Mes que se paga</label>
+          <input type="month" id="mesPagado">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Concepto de pago</label>
+        <select id="concepto">
+          <option value="Pago de renta mensual">Renta mensual</option>
+          <option value="Depósito en garantía">Depósito en garantía</option>
+          <option value="Renta + depósito">Renta + depósito</option>
+          <option value="Otro">Otro (especificar)</option>
+        </select>
+      </div>
+      <div class="field" id="conceptoOtroWrap" style="display:none;">
+        <label>Especifique el concepto</label>
+        <input type="text" id="conceptoOtro" placeholder="Ej. Pago de mantenimiento">
+      </div>
+
+      <div class="field">
+        <label>Monto</label>
+        <input type="number" id="monto" placeholder="0.00" min="0" step="0.01">
+        <div class="amount-words" id="montoLetra">— pesos 00/100 M.N.</div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Dirección de la propiedad</label>
+          <input type="text" id="direccion" placeholder="Calle, número, colonia, Tehuacán, Pue.">
+        </div>
+        <div class="field">
+          <label>Número interior / depto.</label>
+          <input type="text" id="numInt" placeholder="Ej. Depto 3 / Local B">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Nombre del inquilino / arrendatario</label>
+        <input type="text" id="inquilino" placeholder="Nombre completo">
+      </div>
+
+      <div class="field">
+        <label>Teléfono del inquilino (para WhatsApp, opcional)</label>
+        <input type="tel" id="telInquilino" placeholder="Ej. 2381234567">
+      </div>
+
+      <div class="field">
+        <label>Quién recibió el pago</label>
+        <input type="text" id="receptor" placeholder="Nombre de quien cobra">
+      </div>
+
+      <div class="field">
+        <label>Firma de quien recibe</label>
+        <div class="sig-tabs">
+          <button type="button" class="active" id="tabDraw">Dibujar</button>
+          <button type="button" id="tabUpload">Subir imagen</button>
+          <button type="button" id="tabText">Escribir</button>
+        </div>
+        <div id="sigDrawWrap" class="sigpad-wrap">
+          <canvas id="sigPad" width="500" height="140"></canvas>
+          <div class="sig-actions">
+            <button type="button" class="mini2" id="btnSigClear">Borrar trazo</button>
+            <span class="hint" style="margin:0;">Dibuja con mouse o dedo</span>
+          </div>
+        </div>
+        <div id="sigUploadWrap" class="sigpad-wrap" style="display:none;">
+          <input type="file" id="sigUpload" accept="image/*">
+        </div>
+        <div id="sigTextWrap" class="sigpad-wrap" style="display:none;">
+          <input type="text" id="sigTextInput" placeholder="Escribe el nombre a firmar">
+        </div>
+        <div class="hint">Se guarda por nombre de receptor y se reutiliza automáticamente en tus próximos recibos.</div>
+      </div>
+
+      <div class="field">
+        <label>Método de pago</label>
+        <div class="method-toggle">
+          <button type="button" id="btnEfectivo" class="active">Efectivo</button>
+          <button type="button" id="btnTransferencia">Transferencia</button>
+        </div>
+      </div>
+      <div class="field" id="refWrap" style="display:none;">
+        <label>Referencia / últimos 4 dígitos</label>
+        <input type="text" id="referencia" placeholder="Ej. Ref. 884512">
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-gold" id="btnGenerar">🖋 Asignar folio y guardar</button>
+        <button class="btn btn-outline" id="btnLimpiar">Nuevo recibo</button>
+      </div>
+      <div class="hint">
+        El recibo queda en <b>vista previa</b> mientras editas. Al presionar <b>"Asignar folio y guardar"</b> se le asigna un folio consecutivo definitivo y se registra en tu historial — a partir de ahí podrás descargarlo en PDF o compartirlo por WhatsApp.
+      </div>
+
+      <div class="history">
+        <h2 style="margin-top:24px;">Historial de recibos</h2>
+        <table>
+          <thead><tr><th>Folio</th><th>Fecha</th><th>Inquilino</th><th>Monto</th><th></th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+        <div class="empty-hist" id="histEmpty">Aún no has generado recibos.</div>
+      </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="receipt-shell">
+      <div class="panel" style="padding:22px;">
+        <div style="position:relative;overflow:hidden;border-radius:4px;">
+          <div class="draft-badge" id="draftBadge">Vista previa</div>
+          <div id="receipt">
+            <div class="r-head">
+              <div>
+                <div class="co">IRE INMOBILIARIA</div>
+                <div class="co-sub">Comprobante interno de pago</div>
+              </div>
+              <div class="folio-box">
+                <div class="lbl">Folio de operación</div>
+                <div class="val" id="rFolio">PENDIENTE</div>
+              </div>
+            </div>
+
+            <div class="r-title">Recibo de pago de renta</div>
+
+            <div class="holo-seal" id="holoSeal">
+              <div class="hs-mono">IRE</div>
+              <div class="hs-cap">Comprobante<br>auténtico</div>
+              <div class="hs-folio" id="holoFolio">—</div>
+            </div>
+
+            <div class="r-amount">
+              <div class="num" id="rMontoNum">$0.00 MXN</div>
+              <div class="words" id="rMontoWords">cero pesos 00/100 M.N.</div>
+            </div>
+
+            <table class="r-table">
+              <tr><td class="k">Fecha</td><td class="v" id="rFecha">—</td></tr>
+              <tr><td class="k">Concepto de pago</td><td class="v" id="rConcepto">—</td></tr>
+              <tr><td class="k">Mes que se paga</td><td class="v" id="rMes">—</td></tr>
+              <tr><td class="k">Propiedad</td><td class="v" id="rDireccion">—</td></tr>
+              <tr><td class="k">Número interior</td><td class="v" id="rNumInt">—</td></tr>
+              <tr><td class="k">Inquilino / arrendatario</td><td class="v" id="rInquilino">—</td></tr>
+              <tr><td class="k">Método de pago</td><td class="v" id="rMetodo">Efectivo</td></tr>
+              <tr><td class="k">Recibió el pago</td><td class="v" id="rReceptor">—</td></tr>
+            </table>
+
+            <div class="r-foot">
+              <div class="qr-block" id="qrWrap">
+                <div class="qr-canvas" id="qrBox"></div>
+                <div class="qr-cap">Escanea para<br>verificar en línea</div>
+              </div>
+              <div class="r-sign">
+                <img id="rSigImg" class="sig-img" style="display:none;">
+                <div class="cap" id="rSigText" style="display:none;font-family:'Dancing Script',cursive;font-size:28px;color:var(--navy);margin-bottom:-6px;"></div>
+                <div class="line"></div>
+                <div class="cap">Firma de quien recibe</div>
+              </div>
+              <div class="stamp" id="stampBox" style="visibility:hidden;">
+                <div class="t1">PAGADO</div>
+                <div class="t2">IRE INMOBILIARIA</div>
+                <div class="t3" id="stampFolio">—</div>
+              </div>
+            </div>
+
+            <div class="r-legal">
+              Este documento es un comprobante interno de pago para control entre las partes y no sustituye, en su caso, al CFDI que exige el SAT para ingresos por arrendamiento. Consulte a su contador si requiere factura fiscal.
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="btnPDF" disabled>⬇ Descargar PDF</button>
+          <button class="btn btn-gold" id="btnWA" disabled>📲 Compartir por WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let metodo='Efectivo';
+let currentReceipt=null; // saved record once folio assigned
+let history=[];
+
+// ---------- Firebase (IRE INMOBILIARIA) ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyC9Afik0RPlPzhTEr_TlHicNNHHEVkXTOA",
+  authDomain: "ire-inmobiliaria.firebaseapp.com",
+  databaseURL: "https://ire-inmobiliaria-default-rtdb.firebaseio.com",
+  projectId: "ire-inmobiliaria",
+  storageBucket: "ire-inmobiliaria.firebasestorage.app",
+  messagingSenderId: "614961001878",
+  appId: "1:614961001878:web:83829db5bc0f43705dd9b7"
+};
+// EDITA ESTA LÍNEA cuando tengas tu dominio real de Netlify para la página de verificación:
+const VERIFY_BASE_URL = "https://ire-inmobiliaria.netlify.app/verificar.html";
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let cloudReady = firebase.auth().signInAnonymously()
+  .then(()=>true)
+  .catch(err=>{ console.error('Firebase auth error', err); return false; });
+
+// ---------- Number to words (Spanish, MXN) ----------
+function numeroALetras(num){
+  num = Math.round(num*100)/100;
+  const entero = Math.floor(num);
+  const centavos = Math.round((num-entero)*100);
+  const unidades=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'];
+  const especiales=['diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve'];
+  const decenas=['','','veinte','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const centenas=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+
+  function trescientos(n){
+    if(n===0) return '';
+    if(n===100) return 'cien';
+    let out='';
+    const c=Math.floor(n/100), r=n%100;
+    if(c>0) out+=centenas[c]+' ';
+    if(r>0){
+      if(r<10) out+=unidades[r];
+      else if(r<20) out+=especiales[r-10];
+      else{
+        const d=Math.floor(r/10), u=r%10;
+        if(r<30 && r>20) out+='veinti'+unidades[u];
+        else if(r===20) out+='veinte';
+        else{
+          out+=decenas[d];
+          if(u>0) out+=' y '+unidades[u];
+        }
+      }
+    }
+    return out.trim();
+  }
+
+  function seccion(n, sing, plur){
+    if(n===0) return '';
+    if(n===1) return sing;
+    return trescientos(n)+' '+plur;
+  }
+
+  function convierte(n){
+    if(n===0) return 'cero';
+    let out='';
+    const millones=Math.floor(n/1000000);
+    n%=1000000;
+    const miles=Math.floor(n/1000);
+    n%=1000;
+    const resto=n;
+    if(millones>0) out+=seccion(millones,'un millón','millones')+' ';
+    if(miles>0) out+= (miles===1?'mil':trescientos(miles)+' mil')+' ';
+    if(resto>0) out+=trescientos(resto);
+    return out.trim();
+  }
+
+  const enteroTxt = convierte(entero);
+  const cent = String(centavos).padStart(2,'0');
+  return capitalize(enteroTxt)+' pesos '+cent+'/100 M.N.';
+}
+function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+function money(n){
+  return '$'+(isNaN(n)?0:n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})+' MXN';
+}
+function fmtFecha(iso){
+  if(!iso) return '—';
+  const [y,m,d]=iso.split('-');
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return `${parseInt(d)} de ${meses[parseInt(m)-1]} de ${y}`;
+}
+function fmtMes(iso){
+  if(!iso) return '—';
+  const [y,m]=iso.split('-');
+  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return `${meses[parseInt(m)-1]} ${y}`;
+}
+
+// ---------- verification QR ----------
+let qrInstance=null;
+function checksum(str){
+  let h=0;
+  for(let i=0;i<str.length;i++){ h=(h*31 + str.charCodeAt(i))>>>0; }
+  return h.toString(36).toUpperCase().padStart(6,'0').slice(-6);
+}
+function verCodeFor(rec){
+  return checksum(`${rec.folio}|${rec.monto}|${rec.fecha}|${rec.inquilino}`);
+}
+function verifyUrlFor(rec){
+  return `${VERIFY_BASE_URL}?folio=${encodeURIComponent(rec.folio)}`;
+}
+function renderQR(rec){
+  const box=$('qrBox');
+  box.innerHTML='';
+  qrInstance=new QRCode(box,{
+    text:verifyUrlFor(rec), width:56, height:56,
+    colorDark:'#14213D', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M
+  });
+}
+async function pushReceiptToCloud(rec){
+  try{
+    const ok=await cloudReady;
+    if(!ok) return false;
+    await db.ref('recibos/'+rec.folio).set({
+      folio:rec.folio, fecha:rec.fecha, mesPagado:rec.mesPagado, concepto:rec.concepto,
+      monto:rec.monto, direccion:rec.direccion, numInt:rec.numInt, inquilino:rec.inquilino,
+      receptor:rec.receptor, metodo:rec.metodo, verCode:verCodeFor(rec),
+      creado: Date.now()
+    });
+    return true;
+  }catch(e){ console.error('No se pudo sincronizar en Firebase', e); return false; }
+}
+
+// ---------- signature ----------
+let sigMode='draw';
+let sigDataUrl=null;   // for draw / upload
+let sigText='';        // for text mode
+const canvas=$('sigPad');
+const ctx=canvas.getContext('2d');
+ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.strokeStyle='#14213D';
+let drawing=false, lastX=0, lastY=0, hasStroke=false;
+
+function canvasPos(e){
+  const r=canvas.getBoundingClientRect();
+  const cx=(e.touches? e.touches[0].clientX : e.clientX)-r.left;
+  const cy=(e.touches? e.touches[0].clientY : e.clientY)-r.top;
+  return {x:cx*(canvas.width/r.width), y:cy*(canvas.height/r.height)};
+}
+function startDraw(e){ drawing=true; const p=canvasPos(e); lastX=p.x; lastY=p.y; e.preventDefault(); }
+function moveDraw(e){
+  if(!drawing) return;
+  const p=canvasPos(e);
+  ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p.x,p.y); ctx.stroke();
+  lastX=p.x; lastY=p.y; hasStroke=true; e.preventDefault();
+}
+function endDraw(){
+  if(!drawing) return;
+  drawing=false;
+  if(hasStroke){ sigDataUrl=canvas.toDataURL('image/png'); persistSignature(); updatePreview(); }
+}
+canvas.addEventListener('mousedown',startDraw);
+canvas.addEventListener('mousemove',moveDraw);
+window.addEventListener('mouseup',endDraw);
+canvas.addEventListener('touchstart',startDraw,{passive:false});
+canvas.addEventListener('touchmove',moveDraw,{passive:false});
+canvas.addEventListener('touchend',endDraw);
+
+$('btnSigClear').addEventListener('click',()=>{
+  ctx.clearRect(0,0,canvas.width,canvas.height); hasStroke=false; sigDataUrl=null; updatePreview();
+});
+
+$('tabDraw').addEventListener('click',()=>setSigMode('draw'));
+$('tabUpload').addEventListener('click',()=>setSigMode('upload'));
+$('tabText').addEventListener('click',()=>setSigMode('text'));
+function setSigMode(m){
+  sigMode=m;
+  ['tabDraw','tabUpload','tabText'].forEach(id=>$(id).classList.remove('active'));
+  $('tab'+m.charAt(0).toUpperCase()+m.slice(1)).classList.add('active');
+  $('sigDrawWrap').style.display = m==='draw' ? 'block':'none';
+  $('sigUploadWrap').style.display = m==='upload' ? 'block':'none';
+  $('sigTextWrap').style.display = m==='text' ? 'block':'none';
+  updatePreview();
+}
+
+$('sigUpload').addEventListener('change',(e)=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{ sigDataUrl=reader.result; persistSignature(); updatePreview(); };
+  reader.readAsDataURL(file);
+});
+$('sigTextInput').addEventListener('input',()=>{
+  sigText=$('sigTextInput').value; persistSignature(); updatePreview();
+});
+
+function receptorSlug(){
+  return ($('receptor').value||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-') || null;
+}
+async function persistSignature(){
+  const slug=receptorSlug();
+  if(!slug) return;
+  try{
+    await window.storage.set('firma:'+slug, JSON.stringify({mode:sigMode,data:sigMode==='text'?sigText:sigDataUrl}), false);
+  }catch(e){}
+}
+async function loadSignatureForReceptor(){
+  const slug=receptorSlug();
+  if(!slug) return;
+  try{
+    const r=await window.storage.get('firma:'+slug, false);
+    if(!r) return;
+    const parsed=JSON.parse(r.value);
+    setSigMode(parsed.mode);
+    if(parsed.mode==='text'){ sigText=parsed.data||''; $('sigTextInput').value=sigText; }
+    else{
+      sigDataUrl=parsed.data;
+      if(parsed.mode==='draw'){
+        const img=new Image();
+        img.onload=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); hasStroke=true; };
+        img.src=sigDataUrl;
+      }
+    }
+    updatePreview();
+  }catch(e){}
+}
+$('receptor').addEventListener('change', loadSignatureForReceptor);
+
+function applySignatureToPreview(){
+  const img=$('rSigImg'), txt=$('rSigText');
+  if(sigMode==='text' && sigText){
+    txt.textContent=sigText; txt.style.display='block'; img.style.display='none';
+  } else if((sigMode==='draw'||sigMode==='upload') && sigDataUrl){
+    img.src=sigDataUrl; img.style.display='block'; txt.style.display='none';
+  } else {
+    img.style.display='none'; txt.style.display='none';
+  }
+}
+
+// ---------- live preview ----------
+function updatePreview(){
+  const monto=parseFloat($('monto').value)||0;
+  $('rMontoNum').textContent=money(monto);
+  $('rMontoWords').textContent=numeroALetras(monto);
+  $('montoLetra').textContent=numeroALetras(monto);
+
+  const conceptoSel=$('concepto').value;
+  const concepto = conceptoSel==='Otro' ? ($('conceptoOtro').value || 'Otro') : conceptoSel;
+  $('rConcepto').textContent=concepto;
+
+  $('rFecha').textContent=fmtFecha($('fecha').value);
+  $('rMes').textContent=fmtMes($('mesPagado').value);
+  $('rDireccion').textContent=$('direccion').value || '—';
+  $('rNumInt').textContent=$('numInt').value || '—';
+  $('rInquilino').textContent=$('inquilino').value || '—';
+  $('rReceptor').textContent=$('receptor').value || '—';
+  $('rMetodo').textContent = metodo==='Transferencia' && $('referencia').value
+    ? `Transferencia — ${$('referencia').value}` : metodo;
+  applySignatureToPreview();
+}
+
+['fecha','mesPagado','concepto','conceptoOtro','monto','direccion','numInt','inquilino','receptor','referencia','telInquilino']
+  .forEach(id=>$(id).addEventListener('input',()=>{updatePreview(); invalidateFolio();}));
+$('concepto').addEventListener('change',()=>{
+  $('conceptoOtroWrap').style.display = $('concepto').value==='Otro' ? 'block':'none';
+});
+
+$('btnEfectivo').addEventListener('click',()=>{
+  metodo='Efectivo'; $('btnEfectivo').classList.add('active'); $('btnTransferencia').classList.remove('active');
+  $('refWrap').style.display='none'; updatePreview(); invalidateFolio();
+});
+$('btnTransferencia').addEventListener('click',()=>{
+  metodo='Transferencia'; $('btnTransferencia').classList.add('active'); $('btnEfectivo').classList.remove('active');
+  $('refWrap').style.display='block'; updatePreview(); invalidateFolio();
+});
+
+function invalidateFolio(){
+  if(currentReceipt){
+    currentReceipt=null;
+    $('rFolio').textContent='PENDIENTE';
+    $('stampBox').style.visibility='hidden';
+    $('holoSeal').style.visibility='hidden';
+    $('qrWrap').style.visibility='hidden';
+    $('draftBadge').style.display='block';
+    $('btnPDF').disabled=true;
+    $('btnWA').disabled=true;
+  }
+}
+
+// ---------- storage / folio ----------
+async function getCounter(){
+  try{
+    const r=await window.storage.get('folio-counter', false);
+    return r ? parseInt(r.value) : 0;
+  }catch(e){ return 0; }
+}
+async function setCounter(n){
+  try{ await window.storage.set('folio-counter', String(n), false); }catch(e){}
+}
+function folioFor(n){
+  const year=new Date().getFullYear();
+  return `IRE-${year}-${String(n).padStart(4,'0')}`;
+}
+async function refreshChip(){
+  const c=await getCounter();
+  $('nextFolioChip').textContent='Próximo folio: '+folioFor(c+1);
+}
+
+async function loadHistory(){
+  try{
+    const list=await window.storage.get('receipts-index', false);
+    history = list ? JSON.parse(list.value) : [];
+  }catch(e){ history=[]; }
+  renderHistory();
+}
+async function saveHistory(){
+  try{ await window.storage.set('receipts-index', JSON.stringify(history), false); }catch(e){}
+}
+function renderHistory(){
+  const body=$('histBody');
+  body.innerHTML='';
+  if(history.length===0){ $('histEmpty').style.display='block'; return; }
+  $('histEmpty').style.display='none';
+  history.slice().reverse().forEach(rec=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${rec.folio}</td><td>${fmtFecha(rec.fecha)}</td><td>${rec.inquilino||'—'}</td><td>${money(rec.monto)}</td>
+    <td><button class="mini" data-folio="${rec.folio}">Ver</button></td>`;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('.mini').forEach(btn=>{
+    btn.addEventListener('click',()=>loadFromHistory(btn.dataset.folio));
+  });
+}
+function loadFromHistory(folio){
+  const rec=history.find(r=>r.folio===folio);
+  if(!rec) return;
+  $('fecha').value=rec.fecha; $('mesPagado').value=rec.mesPagado;
+  $('concepto').value=['Pago de renta mensual','Depósito en garantía','Renta + depósito'].includes(rec.concepto)?rec.concepto:'Otro';
+  $('conceptoOtroWrap').style.display=$('concepto').value==='Otro'?'block':'none';
+  $('conceptoOtro').value=$('concepto').value==='Otro'?rec.concepto:'';
+  $('monto').value=rec.monto; $('direccion').value=rec.direccion; $('numInt').value=rec.numInt;
+  $('inquilino').value=rec.inquilino; $('telInquilino').value=rec.telInquilino||'';
+  $('receptor').value=rec.receptor; $('referencia').value=rec.referencia||'';
+  metodo=rec.metodo.startsWith('Transferencia')?'Transferencia':'Efectivo';
+  if(metodo==='Transferencia'){$('btnTransferencia').click();}else{$('btnEfectivo').click();}
+  if(rec.sigMode){
+    setSigMode(rec.sigMode);
+    sigDataUrl=rec.sigDataUrl||null; sigText=rec.sigText||'';
+    if(rec.sigMode==='text') $('sigTextInput').value=sigText;
+    if(rec.sigMode==='draw' && sigDataUrl){
+      const img=new Image();
+      img.onload=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); hasStroke=true; };
+      img.src=sigDataUrl;
+    }
+  }
+  updatePreview();
+  currentReceipt=rec;
+  $('rFolio').textContent=rec.folio;
+  $('stampFolio').textContent=rec.folio+' · '+fmtFecha(rec.fecha);
+  $('stampBox').style.visibility='visible';
+  $('holoSeal').style.visibility='visible';
+  $('holoFolio').textContent=rec.folio.slice(-4);
+  renderQR(rec);
+  $('qrWrap').style.visibility='visible';
+  $('draftBadge').style.display='none';
+  $('btnPDF').disabled=false; $('btnWA').disabled=false;
+  showToast('Recibo '+rec.folio+' cargado');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function generarFolio(){
+  if(!$('inquilino').value || !parseFloat($('monto').value)){
+    showToast('Falta nombre del inquilino o monto');
+    return;
+  }
+  const c=await getCounter();
+  const next=c+1;
+  const folio=folioFor(next);
+  const conceptoSel=$('concepto').value;
+  const concepto = conceptoSel==='Otro' ? ($('conceptoOtro').value || 'Otro') : conceptoSel;
+
+  currentReceipt={
+    folio, fecha:$('fecha').value||new Date().toISOString().slice(0,10),
+    mesPagado:$('mesPagado').value, concepto,
+    monto:parseFloat($('monto').value)||0,
+    direccion:$('direccion').value, numInt:$('numInt').value,
+    inquilino:$('inquilino').value, telInquilino:$('telInquilino').value,
+    receptor:$('receptor').value,
+    metodo: metodo==='Transferencia' && $('referencia').value ? `Transferencia — ${$('referencia').value}` : metodo,
+    referencia:$('referencia').value,
+    sigMode, sigDataUrl, sigText
+  };
+  await setCounter(next);
+  history.push(currentReceipt);
+  await saveHistory();
+  renderHistory();
+  await refreshChip();
+  pushReceiptToCloud(currentReceipt).then(ok=>{
+    if(!ok) showToast('Guardado localmente — no se pudo sincronizar en línea para verificación');
+  });
+
+  $('rFolio').textContent=folio;
+  $('stampFolio').textContent=folio+' · '+fmtFecha(currentReceipt.fecha);
+  $('stampBox').style.visibility='visible';
+  $('holoSeal').style.visibility='visible';
+  $('holoFolio').textContent=folio.slice(-4);
+  renderQR(currentReceipt);
+  $('qrWrap').style.visibility='visible';
+  $('draftBadge').style.display='none';
+  $('btnPDF').disabled=false; $('btnWA').disabled=false;
+  showToast('Folio '+folio+' asignado y guardado en tu historial');
+}
+
+$('btnGenerar').addEventListener('click',generarFolio);
+$('btnLimpiar').addEventListener('click',()=>{
+  ['fecha','mesPagado','conceptoOtro','monto','direccion','numInt','inquilino','telInquilino','receptor','referencia']
+    .forEach(id=>$(id).value='');
+  $('concepto').value='Pago de renta mensual';
+  $('conceptoOtroWrap').style.display='none';
+  $('fecha').value=new Date().toISOString().slice(0,10);
+  $('btnEfectivo').click();
+  ctx.clearRect(0,0,canvas.width,canvas.height); hasStroke=false; sigDataUrl=null; sigText=''; $('sigTextInput').value='';
+  setSigMode('draw');
+  invalidateFolio();
+  currentReceipt=null;
+  $('rFolio').textContent='PENDIENTE';
+  $('stampBox').style.visibility='hidden';
+  $('holoSeal').style.visibility='hidden';
+  $('qrWrap').style.visibility='hidden';
+  $('draftBadge').style.display='block';
+  $('btnPDF').disabled=true; $('btnWA').disabled=true;
+  updatePreview();
+});
+
+// ---------- PDF ----------
+async function buildPDFBlob(){
+  const node=$('receipt');
+  const badge=$('draftBadge');
+  const prevDisplay=badge.style.display;
+  badge.style.display='none';
+  const canvas=await html2canvas(node,{scale:2,backgroundColor:'#FBF8F1'});
+  badge.style.display=prevDisplay;
+  const imgData=canvas.toDataURL('image/png');
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({unit:'pt',format:'letter'});
+  const pageW=pdf.internal.pageSize.getWidth();
+  const imgW=pageW-80;
+  const imgH=canvas.height*(imgW/canvas.width);
+  pdf.addImage(imgData,'PNG',40,50,imgW,imgH);
+  return pdf.output('blob');
+}
+
+$('btnPDF').addEventListener('click',async ()=>{
+  if(!currentReceipt) return;
+  $('btnPDF').disabled=true; $('btnPDF').textContent='Generando…';
+  try{
+    const blob=await buildPDFBlob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`Recibo_${currentReceipt.folio}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    showToast('PDF descargado: Recibo_'+currentReceipt.folio+'.pdf');
+  }catch(e){ showToast('No se pudo generar el PDF'); }
+  $('btnPDF').disabled=false; $('btnPDF').textContent='⬇ Descargar PDF';
+});
+
+$('btnWA').addEventListener('click',async ()=>{
+  if(!currentReceipt) return;
+  $('btnWA').disabled=true; $('btnWA').textContent='Preparando…';
+  try{
+    const blob=await buildPDFBlob();
+    const fileName=`Recibo_${currentReceipt.folio}.pdf`;
+    const file=new File([blob],fileName,{type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({
+        files:[file],
+        title:'Recibo de pago '+currentReceipt.folio,
+        text:`Recibo de pago ${currentReceipt.folio} — IRE Inmobiliaria`
+      });
+      showToast('Comparte el PDF eligiendo WhatsApp en el menú');
+    } else {
+      // fallback: download then open WhatsApp chat with prefilled text
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      const msg=encodeURIComponent(
+        `Hola ${currentReceipt.inquilino}, te comparto tu recibo de pago ${currentReceipt.folio} de IRE Inmobiliaria por ${money(currentReceipt.monto)} correspondiente a ${fmtMes(currentReceipt.mesPagado)}. Adjunto el PDF descargado.`
+      );
+      const phone=(currentReceipt.telInquilino||'').replace(/\D/g,'');
+      const waUrl = phone ? `https://wa.me/52${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+      window.open(waUrl,'_blank');
+      showToast('PDF descargado. Adjúntalo manualmente en el chat de WhatsApp que se abrió');
+    }
+  }catch(e){ showToast('No se pudo compartir el recibo'); }
+  $('btnWA').disabled=false; $('btnWA').textContent='📲 Compartir por WhatsApp';
+});
+
+function showToast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// init
+$('fecha').value=new Date().toISOString().slice(0,10);
+$('mesPagado').value=new Date().toISOString().slice(0,7);
+updatePreview();
+refreshChip();
+loadHistory();
+</script>
+</body>
+</html>
